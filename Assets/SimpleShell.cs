@@ -48,38 +48,32 @@ public class SimpleShell : MonoBehaviour {
 
     private Material shellMaterial;
     private GameObject[] shells;
+    private Matrix4x4[] matrices;
 
     private Vector3 displacementDirection = new Vector3(0, 0, 0);
 
     void OnEnable() {
         shellMaterial = new Material(shellShader);
 
-        shells = new GameObject[shellCount];
 
+        // In order to tell the GPU what its uniform variable values should be, we use these "Set" functions which will set the
+        // values over on the GPU. 
+        matrices = new Matrix4x4[shellCount];
+        shellMaterial.SetInt("_ShellCount", shellCount);
+        shellMaterial.SetFloat("_ShellLength", shellLength);
+        shellMaterial.SetFloat("_Density", density);
+        shellMaterial.SetFloat("_Thickness", thickness);
+        shellMaterial.SetFloat("_Attenuation", occlusionAttenuation);
+        shellMaterial.SetFloat("_ShellDistanceAttenuation", distanceAttenuation);
+        shellMaterial.SetFloat("_Curvature", curvature);
+        shellMaterial.SetFloat("_DisplacementStrength", displacementStrength);
+        shellMaterial.SetFloat("_OcclusionBias", occlusionBias);
+        shellMaterial.SetFloat("_NoiseMin", noiseMin);
+        shellMaterial.SetFloat("_NoiseMax", noiseMax);
+        shellMaterial.SetVector("_ShellColor", shellColor);
+        shellMaterial.enableInstancing = true;
         for (int i = 0; i < shellCount; ++i) {
-            shells[i] = new GameObject("Shell " + i.ToString());
-            shells[i].AddComponent<MeshFilter>();
-            shells[i].AddComponent<MeshRenderer>();
-            
-            shells[i].GetComponent<MeshFilter>().mesh = shellMesh;
-            shells[i].GetComponent<MeshRenderer>().material = shellMaterial;
-            shells[i].transform.SetParent(this.transform, false);
-
-            // In order to tell the GPU what its uniform variable values should be, we use these "Set" functions which will set the
-            // values over on the GPU. 
-            shells[i].GetComponent<MeshRenderer>().material.SetInt("_ShellCount", shellCount);
-            shells[i].GetComponent<MeshRenderer>().material.SetInt("_ShellIndex", i);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_ShellLength", shellLength);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Density", density);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Thickness", thickness);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Attenuation", occlusionAttenuation);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_ShellDistanceAttenuation", distanceAttenuation);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Curvature", curvature);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_DisplacementStrength", displacementStrength);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_OcclusionBias", occlusionBias);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_NoiseMin", noiseMin);
-            shells[i].GetComponent<MeshRenderer>().material.SetFloat("_NoiseMax", noiseMax);
-            shells[i].GetComponent<MeshRenderer>().material.SetVector("_ShellColor", shellColor);
+            matrices[i] = Matrix4x4.TRS(transform.position, transform.rotation, transform.localScale);
         }
     }
 
@@ -119,23 +113,27 @@ public class SimpleShell : MonoBehaviour {
         // So it obviously matters at the extreme ends, but something above like setting the directional vector each frame is not going to make an insane diff
         // You will see in my other shaders and scripts that I do not always do this, because I'm lazy, but it's best practice to not update what doesn't need to be
         // updated.
-        if (updateStatics) {
+        if (updateStatics)
+        {
+            matrices = new Matrix4x4[shellCount];
+            shellMaterial.SetInt("_ShellCount", shellCount);
+            shellMaterial.SetFloat("_ShellLength", shellLength);
+            shellMaterial.SetFloat("_Density", density);
+            shellMaterial.SetFloat("_Thickness", thickness);
+            shellMaterial.SetFloat("_Attenuation", occlusionAttenuation);
+            shellMaterial.SetFloat("_ShellDistanceAttenuation", distanceAttenuation);
+            shellMaterial.SetFloat("_Curvature", curvature);
+            shellMaterial.SetFloat("_DisplacementStrength", displacementStrength);
+            shellMaterial.SetFloat("_OcclusionBias", occlusionBias);
+            shellMaterial.SetFloat("_NoiseMin", noiseMin);
+            shellMaterial.SetFloat("_NoiseMax", noiseMax);
+            shellMaterial.SetVector("_ShellColor", shellColor);
+            shellMaterial.enableInstancing = true;
             for (int i = 0; i < shellCount; ++i) {
-                shells[i].GetComponent<MeshRenderer>().material.SetInt("_ShellCount", shellCount);
-                shells[i].GetComponent<MeshRenderer>().material.SetInt("_ShellIndex", i);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_ShellLength", shellLength);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Density", density);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Thickness", thickness);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Attenuation", occlusionAttenuation);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_ShellDistanceAttenuation", distanceAttenuation);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_Curvature", curvature);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_DisplacementStrength", displacementStrength);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_OcclusionBias", occlusionBias);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_NoiseMin", noiseMin);
-                shells[i].GetComponent<MeshRenderer>().material.SetFloat("_NoiseMax", noiseMax);
-                shells[i].GetComponent<MeshRenderer>().material.SetVector("_ShellColor", shellColor);
+                matrices[i] = Matrix4x4.TRS(transform.position, transform.rotation, transform.localScale);
             }
         }
+        Graphics.DrawMeshInstanced(shellMesh, 0, shellMaterial, matrices, shellCount);
     }
 
     void OnDisable() {

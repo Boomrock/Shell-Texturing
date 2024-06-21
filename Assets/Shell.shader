@@ -17,6 +17,8 @@ Shader "Custom/Water" {
 			// to use 'vp' for the vertex shader and 'fp' for the fragment shader
 			#pragma vertex vp
 			#pragma fragment fp
+			
+			#pragma multi_compile_instancing
 
 			// Unity has a lot of built in useful graphics functions, all this stuff is on github which you can look at and read there aren't really any
 			// docs on it lmao
@@ -29,6 +31,7 @@ Shader "Custom/Water" {
 				float4 vertex : POSITION;
 				float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+				uint instanceID : SV_INSTANCEID;
 			};
 
 			// this is called 'v2f' which I call it that cause it stands for like 'vertex to fragment' idk i think it's a cool simple name you can name it anything!!!
@@ -40,9 +43,9 @@ Shader "Custom/Water" {
                 float2 uv : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float3 worldPos : TEXCOORD2;
+				uint instanceID : SV_INSTANCEID; // This is the current shell layer being operated on, it ranges from 0 -> _ShellCount 
 			};
 
-            int _ShellIndex; // This is the current shell layer being operated on, it ranges from 0 -> _ShellCount 
 			int _ShellCount; // This is the total number of shells, useful for normalizing the shell index
 			float _ShellLength; // This is the amount of distance that the shells cover, if this is 1 then the shells will span across 1 world space unit
 			float _Density;  // This is the density of the strands, used for initializing the noise
@@ -75,7 +78,7 @@ Shader "Custom/Water" {
 				v2f i;
 
 				// This is the normalized height of the shell, so instead of like 0, 1, 2, 3, etc. it ranges from 0 -> 1 
-				float shellHeight = (float)_ShellIndex / (float)_ShellCount;
+				float shellHeight = (float)v.instanceID / (float)_ShellCount;
 
 				// Since the height is now normalized, this exponent will behave a bit differently when applied to a number between 0 and 1, instead of
 				// sending it off to infinity it instead biases the number closer to 0 or 1 depending on if the exponent is <1 or >1
@@ -109,7 +112,7 @@ Shader "Custom/Water" {
 
 				// This passes the vertex uvs into the fragment shader to be interpolated
                 i.uv = v.uv;
-
+				i.instanceID = v.instanceID;
 				return i;
 			}
 
@@ -132,7 +135,7 @@ Shader "Custom/Water" {
 
 				// This also just casts the integer uniforms to floats for easier fractional computation below, this is technically unnecessary we could just say (float)_ShellIndex
 				// but it's annoying to do that a lot so instead we use a temporary float variable
-                float shellIndex = _ShellIndex;
+                float shellIndex = i.instanceID;
                 float shellCount = _ShellCount;
 
 				// This is kind of complicated, we generate a random number from our seed which returns a number from 0 -> 1, which is then used
@@ -152,7 +155,7 @@ Shader "Custom/Water" {
 				
 				// This culls the pixel if it is outside the thickness of the strand, it also ensures that the base shell is fully opaque that way there aren't
 				// any real holes in the mesh, although there's certainly better ways to do that
-				if (outsideThickness && _ShellIndex > 0) discard;
+				if (outsideThickness && i.instanceID > 0) discard;
                 
 				// This is the lighting output since at this point we have determined we are not discarding the pixel, so we have to color it
 				// This lighting model is a modification of the Valve's half lambert as described in the video. It is not physically based, but it looks cool I think.
